@@ -2,21 +2,147 @@
 #include <stdlib.h>
 #include <string.h>
 
+enum
+{
+  grp_name_len = 12
+};
+
 typedef struct
 {
-  char s[12];
+  char s[grp_name_len];
 } str12;
+
+enum
+{
+  error_fclose = 128,
+  error_fopen,
+  error_fseek,
+  error_ftell,
+  error_fwrite,
+  error_name_upper
+};
+
+static long
+safe_ftell(FILE* stream)
+{
+  long result = 0;
+
+  if (!stream)
+  {
+    exit(error_ftell);
+  }
+
+  result = ftell(stream);
+  if (result == -1)
+  {
+    perror("ftell");
+    exit(error_ftell);
+  }
+  else
+  {
+    return result;
+  }
+}
+
+static int
+safe_fseek(FILE* stream, long offset, int whence)
+{
+  int result = 0;
+
+  if (!stream)
+  {
+    exit(error_fseek);
+  }
+
+  result = fseek(stream, offset, whence);
+  if (result == -1)
+  {
+    perror("fseek");
+    exit(error_fseek);
+  }
+  else
+  {
+    return result;
+  }
+}
+
+static void
+safe_fclose(FILE* stream)
+{
+  if (!stream)
+  {
+    exit(error_fclose);
+  }
+
+  if (fclose(stream) == EOF)
+  {
+    perror("fclose");
+    exit(error_fclose);
+  }
+}
+
+static void
+safe_fwrite(const void* ptr, size_t size, size_t n, FILE* stream)
+{
+  if (!ptr || !stream)
+  {
+    exit(error_fwrite);
+  }
+
+  if (fwrite(ptr, size, n, stream) != n)
+  {
+    perror("fwrite");
+    safe_fclose(stream);
+    exit(error_fwrite);
+  }
+}
+
+static FILE*
+safe_fopen(const char* path, const char* mode)
+{
+  FILE* fp = NULL;
+
+  if (!path || !mode)
+  {
+    exit(error_fopen);
+  }
+
+  fp = fopen(path, mode);
+  if (!fp)
+  {
+    perror("fopen");
+    exit(error_fopen);
+  }
+  return fp;
+}
+
+static void
+abort_if_exists(const char* path)
+{
+  FILE* fp = fopen(path, "rb");
+  if (fp)
+  {
+    safe_fclose(fp);
+    fprintf(stderr, "ERROR: %s already exists! Quitting!\n", path);
+    exit(EXIT_FAILURE);
+  }
+}
 
 static void
 name_upper(str12* name)
 {
-  size_t i = 0;
+  size_t i;
 
-  for (; i < 12; ++i)
+  if (!name)
+  {
+    exit(error_name_upper);
+  }
+
+  for (i = 0; i < grp_name_len && name->s[i] != '\0'; ++i)
   {
     if (name->s[i] >= 'a' && name->s[i] <= 'z')
     {
-      name->s[i] -= 32;
+      name->s[i] = (char)(name->s[i] - ('a' - 'A'));
     }
   }
 }
@@ -24,64 +150,47 @@ name_upper(str12* name)
 static void
 grp_write(const char* out, const char* in[], size_t n)
 {
-  size_t i = 0;
+  size_t i;
   FILE* out_fp = NULL;
 
   fprintf(stdout, "Checking in %s already exists.\n", out);
-  out_fp = fopen(out, "r");
-  if (out_fp)
-  {
-    fclose(out_fp);
-    fprintf(stderr, "ERROR: %s already exists! Quitting!\n", out);
-    exit(EXIT_FAILURE);
-  }
+  abort_if_exists(out);
 
   fprintf(stdout, "Creating %s.\n", out);
-  out_fp = fopen(out, "w+");
+  out_fp = safe_fopen(out, "wb+");
 
-  fwrite("KenSilverman", 1, 12, out_fp);
-  fwrite(&n, 1, 4, out_fp);
+  safe_fwrite("KenSilverman", 1, grp_name_len, out_fp);
+  safe_fwrite(&n, 1, 4, out_fp);
 
   for (i = 0; i < n; ++i)
   {
-    FILE* in_fp = fopen(in[i], "r");
-    if (!in_fp)
-    {
-      fprintf(stderr, "ERROR: Couldn't open %s! Quitting!\n", out);
-      fclose(out_fp);
-      exit(EXIT_FAILURE);
-    }
+    FILE* in_fp = safe_fopen(in[i], "rb");
     fprintf(stdout, "Adding %s to list.\n", in[i]);
 
     {
       str12 name = {0};
 
-      strncpy(name.s, in[i], 12);
+      strncpy(name.s, in[i], grp_name_len);
       name_upper(&name);
-      fwrite(name.s, 1, 12, out_fp);
+      safe_fwrite(name.s, 1, grp_name_len, out_fp);
       fprintf(stdout, "File name %s", name.s);
     }
 
     {
       long in_size = 0L;
-      fseek(in_fp, 0, SEEK_END);
-      in_size = ftell(in_fp);
-      fseek(in_fp, 0, SEEK_SET);
-      fwrite(&in_size, 1, 4, out_fp);
+      safe_fseek(in_fp, 0, SEEK_END);
+      in_size = safe_ftell(in_fp);
+      safe_fseek(in_fp, 0, SEEK_SET);
+      safe_fwrite(&in_size, 1, 4, out_fp);
       fprintf(stdout, " of size %ld.\n", in_size);
     }
-    fclose(in_fp);
+
+    safe_fclose(in_fp);
   }
 
   for (i = 0; i < n; ++i)
   {
-    FILE* in_fp = fopen(in[i], "r");
-    if (!in_fp)
-    {
-      fprintf(stderr, "ERROR: Couldn't open %s! Quitting!\n", out);
-      fclose(out_fp);
-      exit(EXIT_FAILURE);
-    }
+    FILE* in_fp = safe_fopen(in[i], "rb");
 
     fprintf(stdout, "Adding %s\n", in[i]);
     {
@@ -90,19 +199,14 @@ grp_write(const char* out, const char* in[], size_t n)
 
       while ((j = fread(buf, 1, sizeof(buf), in_fp)) > 0)
       {
-        if (fwrite(buf, 1, j, out_fp) != j)
-        {
-          fprintf(stderr, "ERROR: Couldn't write to %s! Quitting!\n", out);
-          fclose(in_fp);
-          fclose(out_fp);
-          exit(EXIT_FAILURE);
-        }
+        safe_fwrite(buf, 1, j, out_fp);
       }
     }
-    fclose(in_fp);
+
+    safe_fclose(in_fp);
   }
 
-  fclose(out_fp);
+  safe_fclose(out_fp);
   return;
 }
 
@@ -111,7 +215,7 @@ usage(const char* prgname)
 {
   fprintf(stderr, "Usage: %s [output file] [input files]\n", prgname);
   fprintf(stderr, "\n");
-  fprintf(stderr, "Process input files and creates a GRP output file.\n");
+  fprintf(stderr, "Process input files and creates a GRP output file.\n");
   fprintf(stderr, "\n");
 
   fprintf(stderr, "Options:\n");
