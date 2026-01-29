@@ -5,8 +5,8 @@
 ## Tools
 - `grp`: Add files to a GRP file.
 - `ungrp`: Extract files from a GRP file.
-- `rts`: Extract sounds from a RTS file.
-- `unrts`: Create an RTS file from VOC files.
+- `rts`: Create an RTS file from VOC files.
+- `unrts`: Extract sounds from a RTS file.
 - `dmoinfo`: Display informations about a DMO file.
 - `mapinfo`: Display informations about a MAP file
 - `vocinfo`: Display informations about a VOC file.
