@@ -5,9 +5,16 @@
 ## Tools
 - `grp`: Add files to a GRP file.
 - `ungrp`: Extract files from a GRP file.
-- `img2art`: Create an ART from image files.
-- `art2img`: Extract frames from an ART.
-- `map2svg`: Create an SVG file from a MAP file.
+- `rts`: Extract sounds from a RTS file.
+- `unrts`: Create an RTS file from VOC files.
+- `dmoinfo`: Display informations about a DMO file.
+- `mapinfo`: Display informations about a MAP file
+- `vocinfo`: Display informations about a VOC file.
+- `art2img`: Extract frames from an ART file.
+- `img2art`: Create an ART file from image files.
+- `voc2wav`: Convert VOC to WAV.
+- `wav2voc`: Convert WAV to VOC.
+- `map2svg`: Draw an SVG file from a MAP file.
 
 ## Building
 All `.c` files are meant to be independent executables.
