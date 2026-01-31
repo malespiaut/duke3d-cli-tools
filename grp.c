@@ -1,6 +1,19 @@
+/* SPDX-License-Identifier: MIT */
+/**
+ * @file   grp.c
+ * @author Marc-Alexandre Espiaut <ma.dev@espiaut.fr>
+ * @date   2026-01-30
+ * @version 1.1
+ * @brief  Creates a GRP file from a list of files.
+ *
+ * @copyright Copyright (c) 2026 Marc-Alexandre Espiaut
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#define GRP_VERSION "1.1"
 
 enum
 {
@@ -211,19 +224,24 @@ grp_write(const char* out, const char* in[], size_t n)
 }
 
 static void
-usage(const char* prgname)
+usage(const char* prgname, const char* prgver)
 {
-  fprintf(stderr, "Usage: %s [output file] [input files]\n", prgname);
+  fprintf(stderr, "%s %s : Copyright (c) 2026 Marc-Alexandre Espiaut\n", prgname, prgver);
+  fprintf(stderr, "\n");
+  fprintf(stderr, "%s is a tool for making group (.grp) files for Build engine games.\n", prgname);
+  fprintf(stderr, "\n");
+  fprintf(stderr, "Usage: %s [options] [files]\n", prgname);
   fprintf(stderr, "\n");
   fprintf(stderr, "Process input files and creates a GRP output file.\n");
   fprintf(stderr, "\n");
 
   fprintf(stderr, "Options:\n");
-  fprintf(stderr, "  -h, --help       Show this help message and exit\n");
+  fprintf(stderr, "  -h, --help             Show this help message and exit\n");
   /*
-    fprintf(stderr, "  -v, --verbose    Enable verbose output\n");
-    fprintf(stderr, "  -n NUM           Process NUM items (default: 10)\n");
-    fprintf(stderr, "  -o FILE          Write output to FILE\n");
+    fprintf(stderr, "  -v, --verbose          Enable verbose output\n");
+    fprintf(stderr, "  -g, --group            Group files by extensions\n");
+    fprintf(stderr, "  -l, --list LIST.TXT    Add files as listed in LIST.TXT\n");
+    fprintf(stderr, "  -o, --output FILE.GRP  Write output to FILE\n");
     fprintf(stderr, "\n");
   */
   fprintf(stderr, "Examples:\n");
@@ -236,7 +254,7 @@ main(int argc, char* argv[])
 {
   if (argc < 3)
   {
-    usage(argv[0]);
+    usage(argv[0], GRP_VERSION);
   }
   else
   {
