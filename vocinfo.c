@@ -3,7 +3,7 @@
  * @file   vocinfo.c
  * @author Marc-Alexandre Espiaut <ma.dev@espiaut.fr>
  * @date   2026-01-31
- * @version 1.0
+ * @version 1.1
  * @brief  Displays information about a list of VOC files.
  *
  * @copyright Copyright (c) 2026 Marc-Alexandre Espiaut
@@ -13,7 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define VOCINFO_VERSION "1.0"
+#define VOCINFO_VERSION "1.1"
 
 enum
 {
@@ -43,7 +43,7 @@ struct block_header_s
 typedef struct data_type1_s data_type1_t;
 struct data_type1_s
 {
-  unsigned char frequency;
+  unsigned char frequency_divisor;
   unsigned char codec;
   unsigned char* data;
 };
@@ -58,7 +58,7 @@ typedef struct data_type3_s data_type3_t;
 struct data_type3_s
 {
   unsigned short length;
-  unsigned char frequency;
+  unsigned char frequency_divisor;
 };
 
 typedef struct data_type4_s data_type4_t;
@@ -82,7 +82,7 @@ struct data_type6_s
 typedef struct data_type8_s data_type8_t;
 struct data_type8_s
 {
-  unsigned short frequency;
+  unsigned short frequency_divisor;
   unsigned char codec;
   unsigned char channels_num;
 };
@@ -224,6 +224,58 @@ usage(const char* prgname, const char* prgver)
   exit(EXIT_FAILURE);
 }
 
+static const char*
+version_name_get(int version)
+{
+  switch (version)
+  {
+    case 266:
+      return "1.10";
+      break;
+    case 276:
+      return "1.20";
+      break;
+    default:
+      return "UNKNOWN";
+      break;
+  }
+}
+
+static const char*
+codec_name_get(int codec)
+{
+  switch (codec)
+  {
+    case 0x00:
+      return "8 bits unsigned PCM";
+      break;
+    case 0x01:
+      return "4 bits to 8 bits Creative ADPCM";
+      break;
+    case 0x02:
+      return "3 bits to 8 bits Creative ADPCM (AKA 2.6 bits)";
+      break;
+    case 0x03:
+      return "2 bits to 8 bits Creative ADPCM";
+      break;
+    case 0x04:
+      return "16 bits signed PCM";
+      break;
+    case 0x06:
+      return "alaw";
+      break;
+    case 0x07:
+      return "ulaw";
+      break;
+    case 0x0200:
+      return "4 bits to 16 bits Creative ADPCM. Only valid in block type 9";
+      break;
+    default:
+      return "UNKNOWN";
+      break;
+  }
+}
+
 static size_t
 blocks_count(FILE* fp)
 {
@@ -239,24 +291,35 @@ blocks_count(FILE* fp)
 
   while ((i = fread(&bh.type, 1, 1, fp) > 0))
   {
-    fread(&bh.length, 1, 3, fp);
+    if (fread(&bh.length, 1, 3, fp) <= 0)
+    {
+      bh.length = 0;
+    }
 
     switch (bh.type)
     {
       case 0:
-        fprintf(stdout, "0x%lx: block type 0: Terminator\n", safe_ftell(fp));
+        fprintf(stdout, "0x%lx: block type 0 (%d bytes): Terminator\n", safe_ftell(fp), bh.length);
         break;
       case 1:
-        fprintf(stdout, "0x%lx: block type 1: Sound data with type\n", safe_ftell(fp));
+        {
+          block_data_t data = {0};
+          long cursor_backup = safe_ftell(fp);
+
+          fread(&data, 1, 12, fp);
+          safe_fseek(fp, cursor_backup, SEEK_SET);
+
+          fprintf(stdout, "0x%lx: block type 1 (%d bytes): Sound data (sample rate:%d, codec:%s)\n", safe_ftell(fp), bh.length, 1000000 / (256 - data.type1.frequency_divisor), codec_name_get(data.type1.codec));
+        }
         break;
       case 2:
-        fprintf(stdout, "0x%lx: block type 2: Sound data without type\n", safe_ftell(fp));
+        fprintf(stdout, "0x%lx: block type 2 (%d bytes): Sound data without type\n", safe_ftell(fp), bh.length);
         break;
       case 3:
-        fprintf(stdout, "0x%lx: block type 3: Silence\n", safe_ftell(fp));
+        fprintf(stdout, "0x%lx: block type 3 (%d bytes): Silence\n", safe_ftell(fp), bh.length);
         break;
       case 4:
-        fprintf(stdout, "0x%lx: block type 4: Marker\n", safe_ftell(fp));
+        fprintf(stdout, "0x%lx: block type 4 (%d bytes): Marker\n", safe_ftell(fp), bh.length);
         break;
       case 5:
         {
@@ -269,22 +332,30 @@ blocks_count(FILE* fp)
           fread(buf, 1, bh.length, fp);
           safe_fseek(fp, cursor_backup, SEEK_SET);
 
-          fprintf(stdout, "0x%lx: block type 5: Text: %s\n", safe_ftell(fp), buf);
+          fprintf(stdout, "0x%lx: block type 5 (%d bytes): Text: %s\n", safe_ftell(fp), bh.length, buf);
 
           free(buf);
         }
         break;
       case 6:
-        fprintf(stdout, "0x%lx: block type 6: Repeat start\n", safe_ftell(fp));
+        fprintf(stdout, "0x%lx: block type 6 (%d bytes): Repeat start\n", safe_ftell(fp), bh.length);
         break;
       case 7:
-        fprintf(stdout, "0x%lx: block type 7: Repeat end\n", safe_ftell(fp));
+        fprintf(stdout, "0x%lx: block type 7 (%d bytes): Repeat end\n", safe_ftell(fp), bh.length);
         break;
       case 8:
-        fprintf(stdout, "0x%lx: block type 8: Extra information\n", safe_ftell(fp));
+        fprintf(stdout, "0x%lx: block type 8 (%d bytes): Extra information\n", safe_ftell(fp), bh.length);
         break;
       case 9:
-        fprintf(stdout, "0x%lx: block type 9: Sound data\n", safe_ftell(fp));
+        {
+          block_data_t data = {0};
+          long cursor_backup = safe_ftell(fp);
+
+          fread(&data, 1, 12, fp);
+          safe_fseek(fp, cursor_backup, SEEK_SET);
+
+          fprintf(stdout, "0x%lx: block type 9 (%d bytes): Sound data (sample rate:%d, bits:%d, channels:%d, codec:%s, reserved:%d)\n", safe_ftell(fp), bh.length, data.type9.rate, data.type9.bits, data.type9.channels_num, codec_name_get(data.type9.codec), data.type9.reserved);
+        }
         break;
       default:
         fprintf(stderr, "WARN: Unknown block type %d\n", bh.type);
@@ -304,8 +375,6 @@ voc_info(const char* path)
   FILE* fp = NULL;
   voc_t voc = {0};
 
-  fprintf(stdout, "=== %s INFO ===\n", path);
-
   fp = safe_fopen(path, "rb");
 
   {
@@ -323,6 +392,8 @@ voc_info(const char* path)
     fread(&voc.header.size, 1, sizeof(voc.header.size), fp);
     fread(&voc.header.version, 1, sizeof(voc.header.version), fp);
     fread(&voc.header.checksum, 1, sizeof(voc.header.checksum), fp);
+
+    fprintf(stdout, "=== %s (header size:%d, version:%s, checksum:0x%x) ===\n", path, voc.header.size, version_name_get(voc.header.version), voc.header.checksum);
   }
 
   {
