@@ -17,7 +17,7 @@
 
 enum
 {
-  error_fclose = 128,
+  error_fclose = 2,
   error_fopen,
   error_fseek,
   error_ftell,
