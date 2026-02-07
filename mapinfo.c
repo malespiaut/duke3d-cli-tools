@@ -131,8 +131,8 @@ struct sprite_s
   short angle;
   short owner;
   vec3_i16_t vel;
-  short lotag;
-  short hitag;
+  unsigned short lotag;
+  unsigned short hitag;
   short extra;
 };
 
@@ -407,13 +407,143 @@ map_read(map_t* map, const char* path)
 }
 
 static void
-map_print(map_t* map, const char* path)
+sector_print(sector_t s)
 {
-  printf("%s is a MAP format %d, with player start position (%d, %d, %d) and angle %d in sector %d. The map has %d sectors, %d walls, and %d sprites.\n", path, map->version, map->player.position.x, map->player.position.y, map->player.position.z, map->player.angle, map->sector_start, map->sector_count, map->wall_count, map->sprite_count);
+  printf("[sector] wall_ptr: %d, wall_count: %d, ceilling (shade: %d, height: %d, pic: %d, slope: %d, stat: %d, palette: %d, panning: (%d, %d)), floor (shade: %d, height: %d, pic: %d, slope: %d, stat: %d, palette: %d, panning: (%d, %d)), filler: %d, lotag: %d, hitag: %d, extra: %d\n", s.wall_ptr, s.wall_count, s.ceilling.shade, s.ceilling.height, s.ceilling.pic, s.ceilling.slope, s.ceilling.stat, s.ceilling.palette, s.ceilling.panning.x, s.ceilling.panning.y, s.floor.shade, s.floor.height, s.floor.pic, s.floor.slope, s.floor.stat, s.floor.palette, s.floor.panning.x, s.floor.panning.y, s.visibility, s.filler, s.lotag, s.hitag, s.extra);
 }
 
 static void
-map_free(map_t* map)
+sprite_print(sprite_t s)
+{
+  printf("pic: %d, (%d, %d, %d), %d, stat:%d, shade: %d, pal: %d, clipping_distance: %d, filler: %d, repeat: (%d, %d), offset: (%d, %d), sector: %d, status: %d, owner: %d, vel: (%d, %d, %d), lotag: %d, hitag: %d, extra: %d\n", s.pic, s.position.x, s.position.y, s.position.z, s.angle, s.stat, s.shade, s.pal, s.clipping_distance, s.filler, s.repeat.x, s.repeat.y, s.offset.x, s.offset.y, s.sector, s.status, s.owner, s.vel.x, s.vel.y, s.vel.z, s.lotag, s.hitag, s.extra);
+}
+
+static void
+wall_print(wall_t w)
+{
+  printf("[wall] position: (%d, %d), wall_next_right: %d, wall_next_left: %d, sector_next: %d, stat: %d, pic: %d, pic_over: %d, shade: %d, pal: %d, repeat: (%d, %d), panning: (%d, %d), lotag: %d, hitag: %d, extra: %d\n", w.position.x, w.position.y, w.wall_next_right, w.wall_next_left, w.sector_next, w.stat, w.pic, w.pic_over, w.shade, w.pal, w.repeat.x, w.repeat.y, w.panning.x, w.panning.y, w.lotag, w.hitag, w.extra);
+}
+
+static char*
+is_single_player(const map_t* const map)
+{
+  size_t i = 0;
+
+  for (; i < map->sprite_count; ++i)
+  {
+    if (map->sprite[i].pic == 142)
+    {
+      /*sprite_print(&map->sprite[i]);*/
+
+      if (map->sprite[i].lotag == 32767)
+      {
+        return "Yes (\?\?)";
+      }
+      if (map->sprite[i].lotag == 65534)
+      {
+        return "Yes (\"We're gonna fry your ass, Nukem!\")";
+      }
+      if (map->sprite[i].lotag == 65535)
+      {
+        return "Yes (Normal nuke button)";
+      }
+      if (map->sprite[i].pal == 14) /* NUKEBUTTON */
+      {
+        return "Yes (Secret level exit)";
+      }
+    }
+  }
+  i = 0;
+  for (; i < map->sector_count; ++i)
+  {
+    sector_print(map->sector[i]);
+  }
+  return "No";
+}
+
+static char*
+is_dukematch(const map_t* const map, char* buffer)
+{
+  int result = 0;
+
+  {
+    size_t i = 0;
+    for (; i < map->sprite_count; ++i)
+    {
+      if ((map->sprite[i].pic == 1405) /* APLAYER */ && (map->sprite[i].lotag == 0))
+      {
+        ++result;
+      }
+    }
+  }
+
+  if (result)
+  {
+    snprintf(buffer, 256, "Yes (%d players)", result + 1);
+    return buffer;
+  }
+  else
+  {
+    return "No";
+  }
+}
+
+static char*
+is_coop(const map_t* const map, char* buffer)
+{
+  int result = 0;
+
+  {
+    size_t i = 0;
+    for (; i < map->sprite_count; ++i)
+    {
+      if ((map->sprite[i].pic == 1405) /* APLAYER */ && (map->sprite[i].lotag == 1))
+      {
+        ++result;
+      }
+    }
+  }
+
+  if (result)
+  {
+    snprintf(buffer, 256, "Yes (%d players)", result + 1);
+    return buffer;
+  }
+  else
+  {
+    return "No";
+  }
+}
+
+static const char*
+is_vanilla_compatible(const map_t* const map)
+{
+  if ((map->sector_count <= 1024) && (map->wall_count <= 8192) && (map->sprite_count <= 4096))
+  {
+    return "Yes";
+  }
+  else
+  {
+    return "No";
+  }
+}
+
+static void
+map_print(map_t* map, const char* path)
+{
+  char buffer[256] = {'\0'};
+  printf("Filename: %s\n", path);
+  printf("MAP version: %d\n", map->version);
+  printf("Single Player: %s\n", is_single_player(map)); /* Yes/No */
+  printf("Cooperative 2-8 Player: %s\n", is_coop(map, buffer)); /* Yes (x players) */
+  printf("DukeMatch 2-8 Player: %s\n", is_dukematch(map, buffer)); /* Yes (x players) */
+  printf("Atomic Edition Required: \n"); /* Yes/No */
+  printf("New Art: \n"); /* Yes/No */
+  printf("Vanilla DUKE3D.EXE compatible: %s (%d sectors, %d walls, %d sprites)\n\n", is_vanilla_compatible(map), map->sector_count, map->wall_count, map->sprite_count); /* Yes (x sectors, x walls, x sprites)*/
+}
+
+static void
+map_free(const map_t* map)
 {
   free(map->sprite);
   free(map->wall);
