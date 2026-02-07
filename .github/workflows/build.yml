@@ -1,0 +1,19 @@
+name: Build
+
+on: [workflow_dispatch]
+
+jobs:
+  build-windows:
+    runs-on: windows-2022
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ilammy/msvc-dev-cmd@v1
+      - run: cl grp.c
+      - run: cl mapinfo.c
+      - run: cl vocinfo.c
+      - uses: actions/upload-artifact@v4
+        with:
+          name: duke3d-cli-tools-windows
+          path: |
+            *.exe
