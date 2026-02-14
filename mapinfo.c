@@ -453,11 +453,30 @@ is_single_player(const map_t* const map)
       }
     }
   }
+
+  for (i = 0; i < map->sector_count; ++i)
+  {
+    if (map->sector[i].lotag == 32767)
+    {
+      return "Yes (\?\?)";
+    }
+    if (map->sector[i].lotag == 65534)
+    {
+      return "Yes (\"We're gonna fry your ass, Nukem!\")";
+    }
+    if (map->sector[i].lotag == 65535)
+    {
+      return "Yes (Normal nuke button)";
+    }
+  }
+
+  /*
   i = 0;
   for (; i < map->sector_count; ++i)
   {
     sector_print(map->sector[i]);
   }
+  */
   return "No";
 }
 
@@ -534,11 +553,11 @@ map_print(map_t* map, const char* path)
   char buffer[256] = {'\0'};
   printf("Filename: %s\n", path);
   printf("MAP version: %d\n", map->version);
-  printf("Single Player: %s\n", is_single_player(map)); /* Yes/No */
-  printf("Cooperative 2-8 Player: %s\n", is_coop(map, buffer)); /* Yes (x players) */
-  printf("DukeMatch 2-8 Player: %s\n", is_dukematch(map, buffer)); /* Yes (x players) */
-  printf("Atomic Edition Required: \n"); /* Yes/No */
-  printf("New Art: \n"); /* Yes/No */
+  printf("Single Player: %s\n", is_single_player(map));                                                                                                                  /* Yes/No */
+  printf("Cooperative 2-8 Player: %s\n", is_coop(map, buffer));                                                                                                          /* Yes (x players) */
+  printf("DukeMatch 2-8 Player: %s\n", is_dukematch(map, buffer));                                                                                                       /* Yes (x players) */
+  printf("Atomic Edition Required: \n");                                                                                                                                 /* Yes/No */
+  printf("New Art: \n");                                                                                                                                                 /* Yes/No */
   printf("Vanilla DUKE3D.EXE compatible: %s (%d sectors, %d walls, %d sprites)\n\n", is_vanilla_compatible(map), map->sector_count, map->wall_count, map->sprite_count); /* Yes (x sectors, x walls, x sprites)*/
 }
 
