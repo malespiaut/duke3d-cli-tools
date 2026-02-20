@@ -17,6 +17,8 @@ afl-showmap -o /dev/null -- ./mapinfo fuzz_inputs/e1l1.map
 
 ## Making the input corpus unique
 
+Note: `fuzz_inputs` is a directory that contains as many `.map` files as possible.
+
 ```afl-cmin.bash -i fuzz_inputs -o fuzz_inputs_unique -- ./mapinfo @@```
 
 ## Minimizing all corpus files
