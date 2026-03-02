@@ -409,7 +409,7 @@ map_read(map_t* map, const char* path)
 static void
 sector_print(sector_t s)
 {
-  printf("[sector] wall_ptr: %d, wall_count: %d, ceilling (shade: %d, height: %d, pic: %d, slope: %d, stat: %d, palette: %d, panning: (%d, %d)), floor (shade: %d, height: %d, pic: %d, slope: %d, stat: %d, palette: %d, panning: (%d, %d)), filler: %d, lotag: %d, hitag: %d, extra: %d\n", s.wall_ptr, s.wall_count, s.ceilling.shade, s.ceilling.height, s.ceilling.pic, s.ceilling.slope, s.ceilling.stat, s.ceilling.palette, s.ceilling.panning.x, s.ceilling.panning.y, s.floor.shade, s.floor.height, s.floor.pic, s.floor.slope, s.floor.stat, s.floor.palette, s.floor.panning.x, s.floor.panning.y, s.visibility, s.filler, s.lotag, s.hitag, s.extra);
+  printf("[sector] wall_ptr: %d, wall_count: %d, ceilling (shade: %d, height: %d, pic: %d, slope: %d, stat: %d, palette: %d, panning: (%d, %d)), floor (shade: %d, height: %d, pic: %d, slope: %d, stat: %d, palette: %d, panning: (%d, %d)), visibility: %d, filler: %d, lotag: %d, hitag: %d, extra: %d\n", s.wall_ptr, s.wall_count, s.ceilling.shade, s.ceilling.height, s.ceilling.pic, s.ceilling.slope, s.ceilling.stat, s.ceilling.palette, s.ceilling.panning.x, s.ceilling.panning.y, s.floor.shade, s.floor.height, s.floor.pic, s.floor.slope, s.floor.stat, s.floor.palette, s.floor.panning.x, s.floor.panning.y, s.visibility, s.filler, s.lotag, s.hitag, s.extra);
 }
 
 static void
