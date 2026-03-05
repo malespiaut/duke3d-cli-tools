@@ -1,10 +1,11 @@
 ---
 Language: Cpp
-BasedOnStyle: Mozilla
+AlignTrailingComments: Never
 AllowShortBlocksOnASingleLine: Empty
 AllowShortEnumsOnASingleLine: false
 AllowShortFunctionsOnASingleLine: Empty
 AlwaysBreakAfterReturnType: AllDefinitions
+BasedOnStyle: Mozilla
 BreakBeforeBraces: Allman
 ColumnLimit: 0
 Cpp11BracedListStyle: true
