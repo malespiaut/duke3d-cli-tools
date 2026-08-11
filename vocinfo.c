@@ -398,7 +398,7 @@ voc_info(const char* path)
 
   {
     size_t count = blocks_count(fp);
-    fprintf(stdout, "%ld blocks found!\n", count);
+    fprintf(stdout, "%lu blocks found!\n", (unsigned long)count);
   }
 
   safe_fclose(fp);
