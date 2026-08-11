@@ -16,6 +16,27 @@
 - `wav2voc`: Convert WAV to VOC.
 - `map2svg`: Draw an SVG file from a MAP file.
 
+## Releases
+Prebuilt binaries for every tagged version are on the
+[releases page](https://github.com/malespiaut/duke3d-cli-tools/releases):
+
+| Archive | Target |
+| --- | --- |
+| `linux-x86_64.tar.gz` | Linux 64-bit, statically linked |
+| `linux-i686.tar.gz` | Linux 32-bit, statically linked |
+| `windows-x86_64.zip` | Windows 7+ 64-bit |
+| `windows-i686.zip` | Windows 7+ 32-bit |
+| `macos-universal.tar.gz` | macOS 10.13+ (Intel) / 11.0+ (Apple Silicon) |
+
+Check the download against `SHA256SUMS.txt` with `sha256sum -c`.
+
+The macOS and Windows binaries are unsigned.
+On macOS, clear the quarantine flag before the first run:
+
+```sh
+xattr -d com.apple.quarantine grp mapinfo vocinfo
+```
+
 ## Building
 All `.c` files are meant to be independent executables.
 

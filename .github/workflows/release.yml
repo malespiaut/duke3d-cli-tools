@@ -1,0 +1,191 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  TOOLS: grp mapinfo vocinfo
+  CFLAGS_RELEASE: -std=gnu89 -O2 -Wall -Wextra
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install 32-bit toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-multilib
+
+      - name: Strict C89 syntax check
+        run: gcc -std=c89 -pedantic -Wall -Wextra -D_POSIX_C_SOURCE=200809L -fsyntax-only grp.c mapinfo.c vocinfo.c
+
+      - name: Set version
+        run: echo "VERSION=$([ "$GITHUB_REF_TYPE" = tag ] && echo "$GITHUB_REF_NAME" || echo dev)" >> "$GITHUB_ENV"
+
+      - name: Build
+        run: |
+          set -eu
+          for arch in x86_64 i686; do
+            [ "$arch" = i686 ] && bits=-m32 || bits=
+            mkdir -p "out/$arch"
+            for t in $TOOLS; do
+              gcc $CFLAGS_RELEASE $bits -static -s "$t.c" -o "out/$arch/$t"
+            done
+            cp README.md LICENSE "out/$arch/"
+          done
+          file out/*/mapinfo
+
+      - name: Package
+        run: |
+          set -eu
+          mkdir -p dist
+          for arch in x86_64 i686; do
+            tar -czf "dist/duke3d-cli-tools-$VERSION-linux-$arch.tar.gz" -C "out/$arch" .
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: dist/*
+          if-no-files-found: error
+
+  windows:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install MinGW-w64
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mingw-w64 zip
+
+      - name: Set version
+        run: echo "VERSION=$([ "$GITHUB_REF_TYPE" = tag ] && echo "$GITHUB_REF_NAME" || echo dev)" >> "$GITHUB_ENV"
+
+      - name: Build
+        run: |
+          set -eu
+          for arch in x86_64 i686; do
+            mkdir -p "out/$arch"
+            for t in $TOOLS; do
+              "$arch-w64-mingw32-gcc" $CFLAGS_RELEASE -static -s "$t.c" -o "out/$arch/$t.exe"
+            done
+            cp README.md LICENSE "out/$arch/"
+          done
+          file out/*/mapinfo.exe
+
+      - name: Check Windows 7 compatibility
+        run: |
+          set -eu
+          # Ubuntu's mingw-w64 links msvcrt.dll, present since XP. A UCRT-based
+          # toolchain would pull api-ms-win-crt-*.dll instead, which stock
+          # Windows 7 does not have. Fail loudly if that ever changes.
+          for f in out/*/*.exe; do
+            x86_64-w64-mingw32-objdump -p "$f" | grep -i 'DLL Name'
+            if x86_64-w64-mingw32-objdump -p "$f" | grep -qi 'api-ms-win-crt'; then
+              echo "::error::$f imports the Universal CRT and will not run on Windows 7"
+              exit 1
+            fi
+          done
+
+      - name: Package
+        run: |
+          set -eu
+          mkdir -p dist
+          for arch in x86_64 i686; do
+            zip -j "dist/duke3d-cli-tools-$VERSION-windows-$arch.zip" "out/$arch/"*
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: dist/*
+          if-no-files-found: error
+
+  macos:
+    runs-on: macos-14
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set version
+        run: echo "VERSION=$([ "$GITHUB_REF_TYPE" = tag ] && echo "$GITHUB_REF_NAME" || echo dev)" >> "$GITHUB_ENV"
+
+      - name: Build universal binaries
+        run: |
+          set -eu
+          mkdir -p out
+          for t in $TOOLS; do
+            clang $CFLAGS_RELEASE -arch x86_64 -mmacosx-version-min=10.13 "$t.c" -o "$t.x64"
+            clang $CFLAGS_RELEASE -arch arm64 -mmacosx-version-min=11.0 "$t.c" -o "$t.arm64"
+            lipo -create "$t.x64" "$t.arm64" -output "out/$t"
+            strip -x "out/$t"
+          done
+          cp README.md LICENSE out/
+          lipo -info out/mapinfo
+
+      - name: Package
+        run: |
+          set -eu
+          mkdir -p dist
+          tar -czf "dist/duke3d-cli-tools-$VERSION-macos-universal.tar.gz" -C out .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    needs: [linux, windows, macos]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Checksums
+        run: |
+          set -eu
+          cd dist
+          sha256sum duke3d-cli-tools-* > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          body: |
+            Prebuilt binaries for `grp`, `mapinfo` and `vocinfo`.
+
+            | Archive | Target |
+            | --- | --- |
+            | `linux-x86_64.tar.gz` | Linux 64-bit, statically linked |
+            | `linux-i686.tar.gz` | Linux 32-bit, statically linked |
+            | `windows-x86_64.zip` | Windows 7+ 64-bit |
+            | `windows-i686.zip` | Windows 7+ 32-bit |
+            | `macos-universal.tar.gz` | macOS 10.13+ (Intel) / 11.0+ (Apple Silicon) |
+
+            Verify with `sha256sum -c SHA256SUMS.txt`.
+
+            The macOS and Windows binaries are unsigned. On macOS, clear the
+            quarantine flag before the first run:
+
+            ```sh
+            xattr -d com.apple.quarantine grp mapinfo vocinfo
+            ```
