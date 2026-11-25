@@ -95,6 +95,7 @@ memorystream_read(MemoryStream* ms, void* dst, i64 n)
   return n;
 }
 
+#if 0
 static void
 memorystream_free(MemoryStream* ms)
 {
@@ -102,5 +103,6 @@ memorystream_free(MemoryStream* ms)
   ms->size = 0;
   ms->position = 0;
 }
+#endif
 
 #endif /* MEMORYSTREAM_H */
